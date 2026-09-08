@@ -31,7 +31,7 @@
 //
 // # Measured, not asserted
 //
-// The corpus in corpus_test.go is 12 hostile and 29 benign values, and the
+// The corpus in corpus_test.go is 13 hostile and 29 benign values, and the
 // benign half is deliberately the hardest content a real database holds: names
 // in Cyrillic and Greek, right-to-left addresses, emoji, assay names and lab
 // units that spell a Greek letter as Greek, Japanese with a Latin letter inside
@@ -40,8 +40,8 @@
 // quoting an injection payload while discussing it. Running the test prints the
 // confusion matrix.
 //
-//	structural only    recall  58.3%   precision 100.0%   benign false positives 0.0%
-//	both layers        recall  91.7%   precision  91.7%   benign false positives 3.4%
+//	structural only    recall  61.5%   precision 100.0%   benign false positives 0.0%
+//	both layers        recall  92.3%   precision  92.3%   benign false positives 3.4%
 //
 // Read those two lines as the whole product argument. The structural layer
 // catches the attacks that have a byte-level tell and flags nothing benign. The

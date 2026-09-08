@@ -520,7 +520,11 @@ func isLatinLookalike(r rune) bool {
 		return true
 	// Cyrillic uppercase drawn identically to Latin.
 	case 'А', 'В', 'Е', 'К', 'М', 'Н', 'О', 'Р', 'С', 'Т', 'У', 'Х',
-		'І', 'Ј', 'Ѕ', 'Ԁ', 'Ԝ', 'Ё':
+		'І', 'Ј', 'Ѕ', 'Ԁ', 'Ԝ', 'Ё',
+		// Һ and Ԛ are drawn as H and Q. Their lowercase twins һ and ԛ were
+		// already on the list above, so an all-caps word was the only spelling
+		// of the same spoof this detector did not see.
+		'Һ', 'Ԛ':
 		return true
 	// Greek uppercase drawn identically to Latin. The Greek capitals science
 	// actually uses (Delta, Sigma, Pi, Omega, Phi, Psi, Gamma, Lambda, Theta,
@@ -534,6 +538,16 @@ func isLatinLookalike(r rune) bool {
 	// counted only three families, because an Armenian letter set no family at
 	// all and "ignօre" scored as a Latin-only word.
 	case 'օ', 'ո', 'ս', 'ց', 'գ', 'ր', 'ա', 'ք':
+		return true
+	// Armenian capitals, which are separate glyphs rather than larger versions
+	// of the row above, so only the two that pass the same bar are here: Օ is
+	// drawn as O and Ս is drawn as U. "IGNՕRE ALL PREVIOUS INSTRUCTIONS" read
+	// clean while "ignօre all previous instructions" was reported at high
+	// confidence, on the same letter in the other case. The rest of the
+	// Armenian capitals (Ա, Գ, Ն, Ո, Ր, Ց, Ք) are deliberately absent: none of
+	// them is drawn like a Latin capital, and guessing here is how a detector
+	// meant to be acted on unattended starts flagging Armenian records.
+	case 'Օ', 'Ս':
 		return true
 	// Cherokee drawn like Latin capitals, same story.
 	case 'Ꭰ', 'Ꭱ', 'Ꭲ', 'Ꭺ', 'Ꭻ', 'Ꭼ', 'Ꮃ', 'Ꮇ', 'Ꮋ', 'Ꮍ', 'Ᏻ', 'Ꮖ', 'Ꮪ', 'Ꮯ':

@@ -37,10 +37,10 @@ They are separated because they earn different responses:
 
 |                 | recall | precision | benign false positives |
 | --------------- | ------ | --------- | ---------------------- |
-| structural only | 58.3%  | 100.0%    | **0.0%**               |
-| both layers     | 91.7%  | 91.7%     | 3.4%                   |
+| structural only | 61.5%  | 100.0%    | **0.0%**               |
+| both layers     | 92.3%  | 92.3%     | 3.4%                   |
 
-Measured against a corpus of 12 hostile and 29 benign values. Run `go test -run TestCorpusMeasured -v` and it prints the confusion matrix.
+Measured against a corpus of 13 hostile and 29 benign values. Run `go test -run TestCorpusMeasured -v` and it prints the confusion matrix.
 
 **Structural findings are safe to act on. Lexical findings are a reason to look.** The lexical layer's one false positive is a support ticket quoting an injection payload while reporting it, and that is not a tuning problem: the most likely place to find the exact string "ignore all previous instructions" in a real database is somebody discussing the attack. If your data includes a security queue, an LLM transcript table or a bug tracker, run structural only.
 

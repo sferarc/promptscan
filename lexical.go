@@ -187,7 +187,7 @@ func normalizeForMatch(s string) string {
 			// Invisible to the agent reading the row, so invisible here too.
 			continue
 		}
-		if latin, ok := confusableToLatin[r]; ok {
+		if latin, ok := foldConfusable(r); ok {
 			r = latin
 		}
 		if unicode.IsSpace(r) {
@@ -201,6 +201,34 @@ func normalizeForMatch(s string) string {
 		b.WriteRune(unicode.ToLower(r))
 	}
 	return strings.TrimSpace(b.String())
+}
+
+// foldConfusable maps r to the Latin letter it is drawn as, trying the
+// character as written and then its lowercase form.
+//
+// The second lookup is what makes the table apply to text written in capitals.
+// Folding runs before lowercasing, because several entries are uppercase and
+// map to uppercase Latin, so a capital whose only entry in the table is the
+// lowercase spelling used to fall through untouched and then get lowercased
+// into a character nothing looks for again. That left ALL CAPS as a bypass of
+// this layer for every letter whose uppercase spelling is missing: Armenian
+// entirely, plus Cyrillic Һ, Ԁ, Ԛ and Ԝ. "IGNՕRE ALL PREVIOUS INSTRUCTIONS"
+// with one Armenian capital OH came back clean while "ignօre all previous
+// instructions" was caught, on the same substitution in the other case.
+//
+// Doing the lookup by case rather than by adding the missing rows closes the
+// class instead of nine instances, and it cannot fold anything the table does
+// not already declare confusable.
+func foldConfusable(r rune) (rune, bool) {
+	if latin, ok := confusableToLatin[r]; ok {
+		return latin, true
+	}
+	if lower := unicode.ToLower(r); lower != r {
+		if latin, ok := confusableToLatin[lower]; ok {
+			return latin, true
+		}
+	}
+	return r, false
 }
 
 // confusableToLatin folds the Cyrillic and Greek letters that render as Latin.
