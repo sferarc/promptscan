@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+### Patch Changes
+
+- d24577b: fix(scan): a homoglyph substitution was caught in lowercase and missed in capitals
+
 ## 0.1.0
 
 First public release.
