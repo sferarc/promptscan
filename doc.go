@@ -10,7 +10,9 @@
 // was one the agent was entitled to.
 //
 // promptscan reads one value at a time and reports what is provably anomalous at
-// the byte level. It holds no state between values and makes no network calls.
+// the byte level. A Scanner holds no state between values and makes no network
+// calls. A Run, which bounds the work spent on one result set, carries a byte
+// counter and nothing about the content.
 //
 // # What this package will and will not claim
 //
@@ -120,6 +122,31 @@
 // because "our users write English" is not an assumption a security control gets
 // to make. The gap is 24x on a 400 byte value and one accented character is
 // enough to cross it.
+//
+// # Bounding a result set
+//
+// Config.MaxBytes bounds one value. Nothing in Scanner bounds a set of them, so
+// scanning a million row export pays the per-value cost a million times with no
+// ceiling and no lever an operator can pull. Scanner.NewRun takes a Budget that
+// spans values:
+//
+//	run := scanner.NewRun(promptscan.Budget{}) // once per statement
+//	for _, value := range row {
+//	    result := run.Scan(value)
+//	    ...
+//	}
+//	stats := run.Stats() // one audit event per statement, not per row
+//
+// What happens at the end of the budget is the whole design. A value the budget
+// cannot cover is VerdictUnscannable with a budget_exhausted finding, and a
+// value it covers in part is scanned as far as the budget goes and reported the
+// same way. Nothing is ever skipped in silence, because a row nobody scanned
+// that reads as a row nobody objected to is the bug this package is shaped
+// against, and a budget is the easiest place in the design to reintroduce it.
+//
+// A Run is stateful and is not safe for concurrent use. The Scanner it came
+// from is unchanged, so one shared scanner and a fresh Run per statement is the
+// intended shape.
 //
 // # Three deliberate departures
 //

@@ -61,6 +61,14 @@ const (
 	// invalid_encoding, because a caller filtering on technique would
 	// otherwise see a perfectly valid 100KB value reported as malformed.
 	TechniqueTruncated Technique = "truncated"
+	// TechniqueBudgetExhausted is a value the statement budget did not cover,
+	// so it was read in part or not at all. It is distinct from truncated
+	// because the two say different things about the run: truncated is one
+	// oversized value, and this one means the result set outgrew what the
+	// caller was willing to spend and every value after it is in the same
+	// state. Reported at medium confidence when nothing was read and low when
+	// a prefix was, matching invalid_encoding and truncated respectively.
+	TechniqueBudgetExhausted Technique = "budget_exhausted"
 	// TechniqueScannerNotBuilt is the zero-value scanner guard. It exists so a
 	// caller that skipped New gets told, rather than getting silence.
 	TechniqueScannerNotBuilt Technique = "scanner_not_built"
@@ -229,26 +237,40 @@ func New(cfg Config) (*Scanner, error) {
 // on with a zero Result, which would read as clean.
 func (s *Scanner) Scan(value []byte) Result {
 	if s == nil || !s.built {
-		// The lattice-bottom guard. A caller that skipped New gets told so.
-		return Result{
-			Verdict: VerdictUnscannable,
-			Findings: []Finding{{
-				Layer:      LayerStructural,
-				Technique:  TechniqueScannerNotBuilt,
-				Confidence: ConfidenceHigh,
-				Offset:     -1,
-				Detail:     "scanner was not built by New, so no detector ran",
-			}},
-		}
+		return notBuiltResult()
 	}
 	if len(value) == 0 {
 		return Result{Verdict: VerdictClean}
 	}
+	return s.scanWithin(value, s.maxBytes, false)
+}
 
+// notBuiltResult is the lattice-bottom guard. A caller that skipped New gets
+// told so rather than getting silence.
+func notBuiltResult() Result {
+	return Result{
+		Verdict: VerdictUnscannable,
+		Findings: []Finding{{
+			Layer:      LayerStructural,
+			Technique:  TechniqueScannerNotBuilt,
+			Confidence: ConfidenceHigh,
+			Offset:     -1,
+			Detail:     "scanner was not built by New, so no detector ran",
+		}},
+	}
+}
+
+// scanWithin scans at most limit bytes of value. cutByBudget selects which
+// technique reports a value the scan did not reach the end of: an oversized
+// value and a spent statement budget are different facts about coverage, and a
+// caller filtering on technique has to be able to tell them apart.
+//
+// The caller has already ruled out an unbuilt scanner and an empty value.
+func (s *Scanner) scanWithin(value []byte, limit int, cutByBudget bool) Result {
 	scanned := value
 	truncated := false
-	if len(scanned) > s.maxBytes {
-		scanned = truncateAtRuneBoundary(scanned, s.maxBytes)
+	if len(scanned) > limit {
+		scanned = truncateAtRuneBoundary(scanned, limit)
 		truncated = true
 	}
 
@@ -285,17 +307,26 @@ func (s *Scanner) Scan(value []byte) Result {
 		if verdict == VerdictClean {
 			verdict = VerdictUnscannable
 		}
+		technique := TechniqueTruncated
+		detail := fmt.Sprintf(
+			"value is %d bytes and only the first %d were scanned",
+			len(value), len(scanned),
+		)
+		if cutByBudget {
+			technique = TechniqueBudgetExhausted
+			detail = fmt.Sprintf(
+				"statement scan budget ran out %d bytes into a %d byte value",
+				len(scanned), len(value),
+			)
+		}
 		findings = append(findings, Finding{
 			Layer:      LayerStructural,
-			Technique:  TechniqueTruncated,
+			Technique:  technique,
 			Confidence: ConfidenceLow,
 			// Where the scan actually stopped, not where the cap sits. The two
 			// differ by up to three bytes whenever the cap lands mid-rune.
 			Offset: len(scanned),
-			Detail: fmt.Sprintf(
-				"value is %d bytes and only the first %d were scanned",
-				len(value), len(scanned),
-			),
+			Detail: detail,
 		})
 	}
 

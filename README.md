@@ -25,7 +25,7 @@ Anything a person can write into your system can end up in a model's context: a 
 
 That is stored prompt injection, and access control does not touch it. The agent was entitled to read the value. The question is what was in it.
 
-`promptscan` reads one value at a time and reports what is provably anomalous at the byte level. No state between values, no network calls, no model in the loop.
+`promptscan` reads one value at a time and reports what is provably anomalous at the byte level. No network calls, no model in the loop, and no state between values except the byte counter you get if you ask for a budget.
 
 ## Two layers, and they are different products
 
@@ -82,6 +82,23 @@ both layers, 4 KB      44512 ns   2   128851 ns    5 allocs
 ```
 
 ASCII input takes a fast path: every technique the structural layer detects requires a non-ASCII codepoint, so it exits after one linear scan. Do not size an integration on the left column. "Our users write English" is not an assumption a security control gets to make, and one accented character crosses a 24x gap.
+
+## Bounding a batch
+
+`Config.MaxBytes` bounds one value. Nothing in `Scanner` bounds a set of them, so scanning a million rows pays that cost a million times with no ceiling. `NewRun` takes a budget that spans values:
+
+```go
+run := scanner.NewRun(promptscan.Budget{}) // once per query, per request, per batch
+for _, value := range values {
+    result := run.Scan(value)
+    // ...
+}
+stats := run.Stats() // report once, not once per value
+```
+
+The end of the budget is the part worth reading. A value the budget cannot cover comes back `VerdictUnscannable` with a `budget_exhausted` finding, and a value it covers in part is scanned as far as the budget goes and reported the same way. Nothing is skipped in silence, because a value nobody scanned that reads as a value nobody objected to is the failure this package is built against, and a budget is the easiest place to reintroduce it.
+
+A `Run` is stateful and is not safe for concurrent use. The `Scanner` behind it is unchanged and still is, so one shared scanner and a fresh `Run` per batch is the shape.
 
 ## Design notes
 
