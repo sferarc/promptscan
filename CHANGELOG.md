@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+### Patch Changes
+
+- 201dbf4: fix(scan): one invisible codepoint split a spoofed word in half and the mixed-script detector had nothing left to see
+
 ## 0.2.0
 
 ### Minor Changes
