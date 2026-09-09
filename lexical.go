@@ -183,8 +183,10 @@ func normalizeForMatch(s string) string {
 	b.Grow(len(folded))
 	lastSpace := false
 	for _, r := range folded {
-		if isInvisible(r) || isBidiOpen(r) || isBidiClose(r) {
+		if isFormatNeutral(r) {
 			// Invisible to the agent reading the row, so invisible here too.
+			// The same predicate keeps detectMixedScript from ending a word on
+			// one of these, which is the structural half of the same bypass.
 			continue
 		}
 		if latin, ok := foldConfusable(r); ok {

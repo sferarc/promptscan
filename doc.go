@@ -85,8 +85,9 @@
 // Caught. Case changes, extra or collapsed whitespace, fullwidth characters
 // (NFKC folds them), Cyrillic and Greek homoglyph substitution inside a known
 // phrase (the word is flagged structurally too), Armenian homoglyphs, invisible
-// codepoints inserted inside a word (dropped before matching), a payload inside
-// a JSON or XML value, and every technique the structural detectors name.
+// codepoints inserted inside a word (both layers step over them rather than
+// letting one end a word), a payload inside a JSON or XML value, and every
+// technique the structural detectors name.
 //
 // Not caught, and not claimed. Base64, hex or any other encoding of the payload,
 // because decoding arbitrary input to look for text inside it is a different

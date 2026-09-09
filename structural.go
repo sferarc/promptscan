@@ -84,6 +84,24 @@ func isBidiClose(r rune) bool {
 	return false
 }
 
+// isFormatNeutral reports whether r renders as nothing, so a reader looking at
+// the value cannot see it and cannot see it end a word either.
+//
+// It is one predicate over the three sets above because both callers need
+// exactly that union and they must not drift apart: normalizeForMatch drops
+// these before matching a phrase, and detectMixedScript declines to end a word
+// on one. Those are the same statement about the same codepoints, made once.
+//
+// The guard is exact rather than a heuristic: the lowest codepoint in any of
+// the three sets is U+00AD, so no ASCII rune can be format-neutral and the
+// space and the punctuation that end most words never reach the switches.
+func isFormatNeutral(r rune) bool {
+	if r < 0x00ad {
+		return false
+	}
+	return isInvisible(r) || isBidiOpen(r) || isBidiClose(r)
+}
+
 // tagRunePrefixLo and tagRunePrefixHi are the three-byte prefixes of the UTF-8
 // encoding of the Unicode Tag block: U+E0000 encodes as F3 A0 80 80 and U+E007F
 // as F3 A0 81 BF, so every tag codepoint starts with F3 A0 80 or F3 A0 81.
@@ -294,11 +312,18 @@ func detectTagSmuggling(value []byte) (Finding, bool) {
 // row does not happen by accident in prose, and a payload encoded as
 // zero-width bits produces long runs.
 //
-// This threshold is right on its own and was wrong in combination: a single
-// invisible codepoint is genuinely not a structural finding, but it also used
-// to split a phrase in half for the lexical layer, so one U+200B defeated both
-// layers at once. The composition is fixed where it belongs, in
-// normalizeForMatch, and this stays as it is.
+// This threshold is right on its own and was wrong in combination, twice. A
+// single invisible codepoint is genuinely not a structural finding, but it also
+// used to end a word for both of the word-scoped detectors, so one U+200B
+// defeated the layer that was supposed to cover for this one. It split a phrase
+// in half for the lexical layer, and it split a spoofed token into two
+// single-script halves for detectMixedScript.
+//
+// Both are fixed at the point of comparison rather than here, through
+// isFormatNeutral: normalizeForMatch drops those codepoints before matching and
+// detectMixedScript declines to end a word on one. The threshold stays as it
+// is, because a value whose only anomaly is one invisible character still has
+// nothing structural to report about that character.
 const minInvisibleRun = 2
 
 // detectInvisibleRun finds runs of invisible codepoints. It scores runs rather
@@ -569,28 +594,49 @@ func isLatinLookalike(r rune) bool {
 // Cyrillic would flag every Russian customer; checking each word for a mixture
 // flags only the construction that has no honest reading.
 func detectMixedScript(value []byte) (Finding, bool) {
-	start := -1
+	// start is where the current word began and end is one past its last word
+	// rune. They are tracked separately because a format codepoint may sit
+	// inside the word without being part of its edges.
+	start, end := -1, -1
+
+	// closeWord judges the word just ended, and does nothing when there was not
+	// one. A value can hold format codepoints and punctuation and no word at
+	// all, which is the case start < 0 covers.
+	closeWord := func() (Finding, bool) {
+		if start < 0 {
+			return Finding{}, false
+		}
+		return mixedScriptWord(value[start:end], start)
+	}
 
 	// Ranging over string(value) rather than converting first: the compiler
-	// recognizes this exact form and iterates the bytes in place.
+	// recognizes this exact form and iterates the bytes in place. The value is
+	// already known to be valid UTF-8 (scanWithin checks before any detector
+	// runs), so RuneLen below is the width the loop actually consumed.
 	for i, r := range string(value) {
-		if isWordRune(r) {
+		switch {
+		case isWordRune(r):
 			if start < 0 {
 				start = i
 			}
-			continue
-		}
-		if start >= 0 {
-			if f, ok := mixedScriptWord(value[start:i], start); ok {
+			end = i + utf8.RuneLen(r)
+		case isFormatNeutral(r):
+			// Renders as nothing, so it does not end a word for the reader and
+			// must not end one here. Ending on it is what let a single U+200B
+			// cut "раypal" into a Cyrillic half and a Latin half, each of them
+			// single-script and each of them unobjectionable, which is the
+			// whole spoof surviving one invisible codepoint. It is not added to
+			// the word's edges either: a leading or trailing one belongs to no
+			// word.
+		default:
+			if f, ok := closeWord(); ok {
 				return f, true
 			}
-			start = -1
+			start, end = -1, -1
 		}
 	}
-	if start >= 0 {
-		if f, ok := mixedScriptWord(value[start:], start); ok {
-			return f, true
-		}
+	if f, ok := closeWord(); ok {
+		return f, true
 	}
 	return Finding{}, false
 }
