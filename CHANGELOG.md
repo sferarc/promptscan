@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+### Minor Changes
+
+- 87b67d9: feat(scan): a budget that spans values, so a scan can bound a result set and not just a value
+
 ## 0.1.1
 
 ### Patch Changes
