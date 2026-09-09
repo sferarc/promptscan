@@ -713,15 +713,24 @@ func mixedScriptWord(word []byte, offset int) (Finding, bool) {
 		if !isLatinLookalike(r) {
 			continue
 		}
+		// The word can carry format codepoints, because the detector stopped
+		// ending a word on one: that is what keeps a single U+200B from cutting
+		// a spoof in half. Reporting the word therefore means reporting those
+		// codepoints, and Finding.Evidence promises they arrive rendered. A raw
+		// U+202E in this string reorders the rest of any terminal line, log
+		// entry or ticket it lands in, which is the trick this package exists to
+		// name rather than one it should be passing on. Truncating before
+		// rendering matches detectInvisibleRun and keeps the byte budgets below
+		// measured against the stored word rather than against its rendering.
 		return Finding{
 			Layer:      LayerStructural,
 			Technique:  TechniqueMixedScript,
 			Confidence: ConfidenceHigh,
 			Offset:     offset,
-			Evidence:   truncate(string(word), 48),
+			Evidence:   renderInvisible(truncate(string(word), 48)),
 			Detail: fmt.Sprintf(
 				"the word %q is mostly %s but carries %s %q, which is drawn the same way",
-				truncate(string(word), 32), dominant, s, string(r),
+				renderInvisible(truncate(string(word), 32)), dominant, s, string(r),
 			),
 		}, true
 	}
