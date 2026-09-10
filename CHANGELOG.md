@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2
+
+### Patch Changes
+
+- 7a03930: fix(scan): a mixed-script finding handed back its word raw, so a bidi override in it reordered whatever read the evidence
+
 ## 0.2.1
 
 ### Patch Changes
