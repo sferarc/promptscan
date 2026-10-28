@@ -112,12 +112,12 @@
 // same sizes in French and Russian, where the detectors do run.
 //
 //	                        ASCII            non-ASCII
-//	structural,   40 B      22.4 ns   0      360 ns    3 allocs
-//	structural,  400 B       137 ns   0     3239 ns    3 allocs
-//	structural,  4 KB       1162 ns   0    76624 ns    3 allocs
-//	both layers,  40 B       452 ns   2      866 ns    5 allocs
-//	both layers, 400 B      4497 ns   2     8220 ns    5 allocs
-//	both layers, 4 KB      44512 ns   2   128851 ns    5 allocs
+//	structural,   40 B      22.4 ns   0      360 ns    0 allocs
+//	structural,  400 B       137 ns   0     3239 ns    0 allocs
+//	structural,  4 KB       1162 ns   0    76624 ns    0 allocs
+//	both layers,  40 B       452 ns   2      866 ns    2 allocs
+//	both layers, 400 B      4497 ns   2     8220 ns    2 allocs
+//	both layers, 4 KB      44512 ns   2   128851 ns    2 allocs
 //
 // The ASCII fast path is real and it is not a number to size an integration on,
 // because "our users write English" is not an assumption a security control gets

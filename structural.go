@@ -3,6 +3,7 @@ package promptscan
 import (
 	"bytes"
 	"fmt"
+	"iter"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -137,6 +138,20 @@ func isASCII(b []byte) bool {
 	return true
 }
 
+// runesOf yields each rune of b with its byte offset, as ranging over string(b)
+// does. That conversion copies any value over 32 bytes, once per detector.
+func runesOf(b []byte) iter.Seq2[int, rune] {
+	return func(yield func(int, rune) bool) {
+		for i := 0; i < len(b); {
+			r, n := utf8.DecodeRune(b[i:])
+			if !yield(i, r) {
+				return
+			}
+			i += n
+		}
+	}
+}
+
 // scanStructural runs every byte-level and script-level detector.
 func scanStructural(value []byte) []Finding {
 	// Most database text is ASCII, and ASCII is provably clean for this layer.
@@ -236,7 +251,7 @@ func detectTagSmuggling(value []byte) (Finding, bool) {
 		inCandidate = false
 	}
 
-	for i, r := range string(value) {
+	for i, r := range runesOf(value) {
 		isTag := r >= 0xe0000 && r <= 0xe007f
 
 		if inCandidate {
@@ -336,7 +351,7 @@ func detectInvisibleRun(value []byte) (Finding, bool) {
 
 	run := 0
 	runAt := -1
-	for i, r := range string(value) {
+	for i, r := range runesOf(value) {
 		if isInvisible(r) {
 			if run == 0 {
 				runAt = i
@@ -384,7 +399,7 @@ func detectUnbalancedBidi(value []byte) (Finding, bool) {
 	firstOpen := -1
 	sawOverride := false
 
-	for i, r := range string(value) {
+	for i, r := range runesOf(value) {
 		switch {
 		case isBidiOpen(r):
 			if depth == 0 {
@@ -609,11 +624,9 @@ func detectMixedScript(value []byte) (Finding, bool) {
 		return mixedScriptWord(value[start:end], start)
 	}
 
-	// Ranging over string(value) rather than converting first: the compiler
-	// recognizes this exact form and iterates the bytes in place. The value is
-	// already known to be valid UTF-8 (scanWithin checks before any detector
-	// runs), so RuneLen below is the width the loop actually consumed.
-	for i, r := range string(value) {
+	// The value is already known to be valid UTF-8 (scanWithin checks before
+	// any detector runs), so RuneLen below is the width the loop consumed.
+	for i, r := range runesOf(value) {
 		switch {
 		case isWordRune(r):
 			if start < 0 {
@@ -665,7 +678,7 @@ func mixedScriptWord(word []byte, offset int) (Finding, bool) {
 	var counts [scriptCherokee + 1]int
 	letters := 0
 
-	for _, r := range string(word) {
+	for _, r := range runesOf(word) {
 		if !unicode.IsLetter(r) {
 			continue
 		}
@@ -702,7 +715,7 @@ func mixedScriptWord(word []byte, offset int) (Finding, bool) {
 		return Finding{}, false
 	}
 
-	for _, r := range string(word) {
+	for _, r := range runesOf(word) {
 		if !unicode.IsLetter(r) {
 			continue
 		}

@@ -73,12 +73,12 @@ Per value, on an M4 Pro:
 
 ```
                         ASCII            non-ASCII
-structural,   40 B      22.4 ns   0      360 ns    3 allocs
-structural,  400 B       137 ns   0     3239 ns    3 allocs
-structural,  4 KB       1162 ns   0    76624 ns    3 allocs
-both layers,  40 B       452 ns   2      866 ns    5 allocs
-both layers, 400 B      4497 ns   2     8220 ns    5 allocs
-both layers, 4 KB      44512 ns   2   128851 ns    5 allocs
+structural,   40 B      22.4 ns   0      360 ns    0 allocs
+structural,  400 B       137 ns   0     3239 ns    0 allocs
+structural,  4 KB       1162 ns   0    76624 ns    0 allocs
+both layers,  40 B       452 ns   2      866 ns    2 allocs
+both layers, 400 B      4497 ns   2     8220 ns    2 allocs
+both layers, 4 KB      44512 ns   2   128851 ns    2 allocs
 ```
 
 ASCII input takes a fast path: every technique the structural layer detects requires a non-ASCII codepoint, so it exits after one linear scan. Do not size an integration on the left column. "Our users write English" is not an assumption a security control gets to make, and one accented character crosses a 24x gap.
