@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3
+
+### Patch Changes
+
+- f3c7c46: perf(scan): the structural layer no longer copies a non-ASCII value once per detector, so scanning a clean value allocates nothing
+
 ## 0.2.2
 
 ### Patch Changes
